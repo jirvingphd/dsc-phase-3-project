@@ -6,6 +6,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
+from IPython.display import display
+
 
 def get_time(verbose=False):
     """Helper function to return current time.
@@ -94,6 +96,20 @@ def fit_and_time_model(model, X_train,y_train,X_test,y_test,
     return model
 
 
+def evaluate_classification(model, X_test,y_test,normalize='true'):
+    ## Plot Confusion Matrix and display classification report
+    get_report(model,X_test,y_test,as_df=False)
+    
+    fig,ax = plt.subplots(figsize=(10,5),ncols=2)
+    metrics.plot_confusion_matrix(model,X_test,y_test,normalize=normalize,
+                                  cmap='Blues',ax=ax[0])
+    metrics.plot_roc_curve(model,X_test,y_test,ax=ax[1])
+    ax[1].plot([0,1],[0,1],ls=':')
+    ax[1].grid()
+    fig.tight_layout()
+    plt.show()
+
+
 
 
 def evaluate_grid(grid,X_test,y_test,X_train=None,y_train=None):
@@ -118,9 +134,9 @@ def get_importance(tree, X_train_df, top_n=20,figsize=(10,10)):
 
 
 
-def show_tree(clf,figsize=(60,25),class_names=['Died','Survived'],
+def show_tree(clf,X_train_df,figsize=(60,25),class_names=['Died','Survived'],
               savefig=False,fname='titanic_tree.pdf',max_depth=None,):
-    
+    from sklearn.tree import plot_tree
     fig,ax = plt.subplots(figsize=figsize)
     plot_tree(clf,filled=True,rounded=True,proportion=True,
               feature_names=X_train_df.columns,
@@ -133,72 +149,3 @@ def show_tree(clf,figsize=(60,25),class_names=['Died','Survived'],
 
 
 
-
-from scipy import stats
-
-def find_outliers_z(data):
-    """Detects outliers using the Z-score>3 cutoff.
-    Returns a boolean Series where True=outlier"""
-    zFP = np.abs(stats.zscore(data))
-    zFP = pd.Series(zFP, index=data.index)
-    idx_outliers = zFP > 3
-    return idx_outliers
-
-
-def find_outliers_IQR(data):
-    """Detects outliers using the 1.5*IQR thresholds.
-    Returns a boolean Series where True=outlier"""
-    res = data.describe()
-    q1 = res['25%']
-    q3 = res['75%']
-    thresh = 1.5*(q3-q1)
-    idx_outliers =(data < (q1-thresh)) | (data > (q3+thresh))
-    return idx_outliers
-
-def color_above_thresh(val,thresh=0.05):
-    """
-    Takes a scalar and returns a string with
-    the css property `'color: red'` for negative
-    strings, black otherwise.
-    """
-    color = 'red' if val > thresh else 'black'
-    return 'color: %s' % color
-
-
-def check_null_cols(df,above_cutoff=True,percent_cutoff=5):
-    """Displays null values for columns that have nulls > 0.
-    Returns index of columns """
-    ## Get Nulls, filter >0
-    nulls = df.isna().sum()
-    nulls = nulls[nulls>0]
-
-    ## make into a df
-    null_df = pd.DataFrame({'# null':nulls,
-                            '% null': (nulls/len(df)*100).round(2)})
-    
-    null_df.sort_values('% null',ascending=False,inplace=True)
-    null_df['Droppable'] = null_df['% null'] < percent_cutoff
-
-    s = null_df
-#     display(s.style.set_caption('Null Values '))
-    return s
-
-def column_report(df):
-    """Returns a dataframe with the following summary information
-    for each column in df.
-    - Dtype
-    - # Unique Entries
-    - # Null Values
-    - # Non-Null Values
-    - % Null Values
-    """
-    report = pd.DataFrame({'dtype':df.dtypes, 
-          
-             'nunique':df.nunique(),
-               '# Nulls': df.isna().sum(),
-              '# Non-Nulls':df.notnull().sum(),
-                          }).reset_index().rename({'index':'column'},axis=1)
-    report[''] = range(len(report))
-    report.set_index('',inplace=True)
-    report['% null'] = np.round(report['# Nulls']/len(df)*100,2)
-    return report

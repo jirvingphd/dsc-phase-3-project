@@ -2,6 +2,8 @@ from project_functions.imports import *
 from scipy import stats
 from statsmodels.stats.outliers_influence import variance_inflation_factor
 import statsmodels.api as sm
+import statsmodels.formula.api as smf
+from IPython.display import display
 
 def plot_hist_regplot_gs(df,column,target='price',
                      figsize=(12,5),style='seaborn-notebook',
@@ -154,7 +156,7 @@ def make_ols(X,y,show_summary=True,diagnose=True):
 
 
 
-def diagnose_model(model,x_data = None):
+def diagnose_model(model,x_data = None,y=None):
     """
     Plot Q-Q plot and model residuals from statsmodels ols model.
     
@@ -171,8 +173,9 @@ def diagnose_model(model,x_data = None):
 
     
     if x_data is None:
-        xs = np.linspace(0,1,len(resids))
         resids = model.resid
+        xs = np.linspace(0,1,len(resids))
+        
     else: 
         y_hat = model.predict(x_data,transform=True)
         resids = y-y_hat
@@ -187,3 +190,66 @@ def diagnose_model(model,x_data = None):
     plt.tight_layout()
     plt.show()
     return fig,ax 
+
+
+
+def make_ols_f(df,target='price',col_list=None,exclude_cols=[],
+               cat_cols = [],  show_summary=True,
+               diagnose=True, fit_intercept=True):
+    """
+    Makes statsmodels formula-based regression with options to make categorical columns.    
+    Args:
+        df (Frame): df with data
+        target (str): target column name
+        col_list (list, optional): List of predictor columns. Defaults to all except target.
+        exclude_cols (list, optional): Columns to remove from col_list. Defaults to [].
+        cat_cols (list, optional): Columns to process as categorical using f'C({col})". Defaults to [].
+        show_summary (bool, optional): Display model.summary(). Defaults to True.
+        diagnose (bool, optional): Plot Q-Q plot & residuals. Defaults to True.
+        return_formula (bool, optional): Return formula with model. Defaults to False.
+    
+    Returns:
+        model : statsmodels ols model
+        formula : str formula from model, only if return_formula == True
+        
+    
+    """
+    if col_list is None:
+        col_list = list(df.drop(target,axis=1).columns)
+        
+    ## remove exclude cols
+    [col_list.remove(ecol) for ecol in exclude_cols if ecol in col_list]
+
+    ## Make rightn side of formula eqn
+    features = '+'.join(col_list)
+
+    # ADD C() around categorical cols
+    for col in cat_cols:
+        features = features.replace(col,f"C({col})")
+
+    ## MAKE FULL FORMULA
+#     print
+    formula = target+'~'+features #target~predictors
+    print(formula)
+    
+    if fit_intercept==False:
+        formula += "-1"
+    ## Fit model
+    model = smf.ols(formula=formula, data=df).fit()
+    
+    ## Display summary
+    if show_summary:
+        display(model.summary())
+        
+    ## Plot Q-Qplot & model residuals
+    if diagnose:
+        try:
+            fig,ax = diagnose_model(model,x_data=df)
+            plt.show()
+        except Exception as e:
+            print('ERROR:')
+            print(e)
+    # Returns formula or just mmodel
+        return model
+    
+    
