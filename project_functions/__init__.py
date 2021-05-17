@@ -130,3 +130,75 @@ def show_tree(clf,figsize=(60,25),class_names=['Died','Survived'],
     if savefig:
         fig.savefig(fname, dpi=300,orientation='landscape')
     return fig
+
+
+
+
+from scipy import stats
+
+def find_outliers_z(data):
+    """Detects outliers using the Z-score>3 cutoff.
+    Returns a boolean Series where True=outlier"""
+    zFP = np.abs(stats.zscore(data))
+    zFP = pd.Series(zFP, index=data.index)
+    idx_outliers = zFP > 3
+    return idx_outliers
+
+
+def find_outliers_IQR(data):
+    """Detects outliers using the 1.5*IQR thresholds.
+    Returns a boolean Series where True=outlier"""
+    res = data.describe()
+    q1 = res['25%']
+    q3 = res['75%']
+    thresh = 1.5*(q3-q1)
+    idx_outliers =(data < (q1-thresh)) | (data > (q3+thresh))
+    return idx_outliers
+
+def color_above_thresh(val,thresh=0.05):
+    """
+    Takes a scalar and returns a string with
+    the css property `'color: red'` for negative
+    strings, black otherwise.
+    """
+    color = 'red' if val > thresh else 'black'
+    return 'color: %s' % color
+
+
+def check_null_cols(df,above_cutoff=True,percent_cutoff=5):
+    """Displays null values for columns that have nulls > 0.
+    Returns index of columns """
+    ## Get Nulls, filter >0
+    nulls = df.isna().sum()
+    nulls = nulls[nulls>0]
+
+    ## make into a df
+    null_df = pd.DataFrame({'# null':nulls,
+                            '% null': (nulls/len(df)*100).round(2)})
+    
+    null_df.sort_values('% null',ascending=False,inplace=True)
+    null_df['Droppable'] = null_df['% null'] < percent_cutoff
+
+    s = null_df
+#     display(s.style.set_caption('Null Values '))
+    return s
+
+def column_report(df):
+    """Returns a dataframe with the following summary information
+    for each column in df.
+    - Dtype
+    - # Unique Entries
+    - # Null Values
+    - # Non-Null Values
+    - % Null Values
+    """
+    report = pd.DataFrame({'dtype':df.dtypes, 
+          
+             'nunique':df.nunique(),
+               '# Nulls': df.isna().sum(),
+              '# Non-Nulls':df.notnull().sum(),
+                          }).reset_index().rename({'index':'column'},axis=1)
+    report[''] = range(len(report))
+    report.set_index('',inplace=True)
+    report['% null'] = np.round(report['# Nulls']/len(df)*100,2)
+    return report
