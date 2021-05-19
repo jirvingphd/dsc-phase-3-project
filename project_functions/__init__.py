@@ -123,13 +123,17 @@ def evaluate_grid(grid,X_test,y_test,X_train=None,y_train=None):
     
     
     
-def get_importance(tree, X_train_df, top_n=20,figsize=(10,10)):
+def get_importance(tree, X_train_df, top_n=20,figsize=(10,10),plot=True):
     
     df_importance = pd.Series(tree.feature_importances_,
                               index=X_train_df.columns)
-    df_importance.sort_values(ascending=True).tail(top_n).plot(
+
+    if plot:           
+        df_importance.sort_values(ascending=True).tail(top_n).plot(
         kind='barh',figsize=figsize,title='Feature Importances',
-    ylabel='Feature',)
+    ylabel='Feature',)  
+    else: 
+        df_importance.sort_values(ascending=False)
     return df_importance
 
 
