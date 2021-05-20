@@ -43,12 +43,28 @@ def get_report(model,X_test,y_test,as_df=False,label="TEST DATA"):
         
         
         
-
     
 def fit_and_time_model(model, X_train,y_train,X_test,y_test,
                       fit_kws={}, scoring="accuracy",normalize='true',
                        fmt="%m/%d/%y-%T", verbose=True):
-    """Fits the provided model and evaluates using provided data."""
+    """[Fits the provided model and evaluates using provided data.
+
+    Args:
+        model (classifier]): Initialized Model to fit and evaluate
+        X_train (df/matrix): [description]
+        y_train (series/array): [description]
+        X_test (df/matrix): [description]
+        y_test (series/array): [description]
+        fit_kws (dict, optional): Kwargs for .fit. Defaults to {}.
+        scoring (str, optional): Scoring metric to use. Defaults to "accuracy".
+        normalize (str, optional): Normalize confusion matrix. Defaults to 'true'.
+        fmt (str, optional): Time format. Defaults to "%m/%d/%y-%T".
+        verbose (bool, optional): [description]. Defaults to True.
+
+    Raises:
+        Exception: [description]
+    """
+
     if X_test.ndim==1:
         raise Exception('The arg order has changed to X_train,y_train,X_test,y_test')
 
@@ -88,16 +104,20 @@ def fit_and_time_model(model, X_train,y_train,X_test,y_test,
     fig,ax = plt.subplots(figsize=(10,5),ncols=2)
     metrics.plot_confusion_matrix(model,X_test,y_test,normalize=normalize,
                                   cmap='Blues',ax=ax[0])
-    metrics.plot_roc_curve(model,X_test,y_test,ax=ax[1])
-    ax[1].plot([0,1],[0,1],ls=':')
-    ax[1].grid()
+
+    try:
+        metrics.plot_roc_curve(model,X_test,y_test,ax=ax[1])
+        ax[1].plot([0,1],[0,1],ls=':')
+        ax[1].grid()
+    except: 
+        fig.delaxes(ax[1])
     fig.tight_layout()
     plt.show()
     return model
 
 
 def evaluate_classification(model, X_test,y_test,normalize='true'):
-    ## Plot Confusion Matrix and display classification report
+    """Plot Confusion Matrix and display classification report"""
     get_report(model,X_test,y_test,as_df=False)
     
     fig,ax = plt.subplots(figsize=(10,5),ncols=2)
@@ -184,3 +204,32 @@ def compare_importances(*importances,sort_index=True,sort_col=0,show_bar=False):
         return compare_importances.style.bar().set_caption(f'Feature Importances - sorted by {sort_col_name}')
     else:
         return compare_importances
+
+
+## update function to return 
+def get_coefficients(model,X_train,units = "log-odds"):
+    """Returns model coefficients. 
+    
+    Args:
+        model: sklearn model with the .coef_ attribute. 
+        X_train: dataframe with the feature names as the .columns
+        units (str): Can be ['log-odds','odds','prob']
+        """
+    options = ['log-odds','odds','prob']
+    
+    if units not in options:
+        raise Exception(f'units must be one of {options}')
+        
+    coeffs = pd.Series(model.coef_.flatten(), index=X_train.columns)
+    coeffs['intercept'] = model.intercept_[0]
+    
+    if units=='odds':
+        coeffs = np.exp(coeffs)
+        
+    elif units=='prob':
+        coeffs = np.exp(coeffs)
+        coeffs = coeffs/(1+coeffs)
+        
+
+    coeffs.name=units
+    return coeffs
